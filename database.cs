@@ -1,18 +1,80 @@
-﻿using MySql.Data.MySqlClient;
+using MySql.Data.MySqlClient;
+using System;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace meyn
 {
     class ManageAnimal
     {
-        private string connString;
+        private static string connString = "Server=localhost;Database=petadoption;User ID=root;Password=;";
 
-        public ManageAnimal()
+        public static bool CheckUserExists(string email)
         {
-            string server = "localhost";
-            string database = "petadoption";
-            string username = "root";
-            string password = "";
-            connString = $"Server={server};Database={database};User ID={username};Password={password};";
+            using (MySqlConnection conn = new MySqlConnection(connString))
+            {
+                conn.Open();
+                string query = "SELECT COUNT(*) FROM users WHERE Email = @Email";
+
+                using (var cmd = new MySqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@Email", email);
+                    int count = Convert.ToInt32(cmd.ExecuteScalar());
+                    return count > 0;
+                }
+            }
+        }
+
+        public static string HashPassword(string password)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+                StringBuilder builder = new StringBuilder();
+                foreach (byte b in bytes)
+                {
+                    builder.Append(b.ToString("x2"));
+                }
+                return builder.ToString();
+            }
+        }
+
+        public static bool RegisterUser(string fullName, string email, string password)
+        {
+            string hashedPassword = HashPassword(password);
+            using (MySqlConnection conn = new MySqlConnection(connString))
+            {
+                conn.Open();
+                string query = "INSERT INTO users (FullName, Email, Password) VALUES (@FullName, @Email, @Password)";
+
+                using (var cmd = new MySqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@FullName", fullName);
+                    cmd.Parameters.AddWithValue("@Email", email);
+                    cmd.Parameters.AddWithValue("@Password", hashedPassword);
+
+                    int rowsAffected = cmd.ExecuteNonQuery();
+                    return rowsAffected > 0;
+                }
+            }
+        }
+
+        public static bool ValidateLogin(string email, string password)
+        {
+            string hashedPassword = HashPassword(password);
+            using (MySqlConnection conn = new MySqlConnection(connString))
+            {
+                conn.Open();
+                string query = "SELECT COUNT(*) FROM users WHERE Email = @Email AND Password = @Password";
+                using (var cmd = new MySqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@Email", email);
+                    cmd.Parameters.AddWithValue("@Password", hashedPassword);
+
+                    int count = Convert.ToInt32(cmd.ExecuteScalar());
+                    return count > 0;
+                }
+            }
         }
 
         public void RegisterAnimal(string species, string breed, int age, string healthStatus)
@@ -68,7 +130,6 @@ namespace meyn
             }
         }
 
-
         public void CreateAdoptionRequest(string adopterName, int animalId)
         {
             using (MySqlConnection conn = new MySqlConnection(connString))
@@ -104,7 +165,6 @@ namespace meyn
                 }
             }
         }
-
 
         public void TrackAdoptionRequest(string adopterName, int animalId)
         {

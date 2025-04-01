@@ -1,8 +1,6 @@
-﻿using System;
+using System;
 using System.Net;
 using System.Net.Mail;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
 
 namespace meyn;
 
@@ -37,7 +35,7 @@ public class process
                     loginreg.login();
                     if (loginreg.isLoggedIn)
                     {
-                        choice2(); // pagtapos ma-login proceed na sa next menu
+                        choice2();
                     }
                     break;
                 case 3:
@@ -144,7 +142,6 @@ public class process
         }
     }
 
-
     public static void HandleError(string errorMessage)
     {
         Console.Clear();
@@ -195,17 +192,8 @@ public class loginreg
         Console.Write("Enter your choice: ");
     }
 
-
-
     public static void register()
     {
-        if (isRegistered)
-        {
-            Console.Clear();
-            Console.WriteLine("You are already registered!\n");
-            return;
-        }
-
         Console.Clear();
         Console.WriteLine(@"
 
@@ -221,28 +209,34 @@ public class loginreg
 ");
 
         Console.Write("Enter your Full Name: ");
-        name = Console.ReadLine();
+        string fullName = Console.ReadLine();
 
-        // validation ng email
-        bool validEmail = false;
-        while (!validEmail)
+        string email;
+        while (true)
         {
             Console.Write("Enter your Email Address: ");
             email = Console.ReadLine();
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                if (addr.Address == email) break;
+            }
+            catch
+            {
+                Console.WriteLine("\nInvalid email format. Please try again.");
+            }
 
-            string emailPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
-            if (Regex.IsMatch(email, emailPattern))
-            {
-                validEmail = true;
-            }
-            else
-            {
-                Console.WriteLine("Invalid email format. Please try again.");
-            }
         }
 
         Console.Write("Enter your Password: ");
-        password = Console.ReadLine();
+        string password = Console.ReadLine();
+
+        if (ManageAnimal.CheckUserExists(email))
+        {
+            Console.Clear();
+            Console.WriteLine("Email already registered! Try logging in.");
+            return;
+        }
 
         string verificationCode = GenerateVerificationCode();
         bool emailSent = emailSetup.SendEmail(email, verificationCode);
@@ -254,12 +248,16 @@ public class loginreg
 
             if (userCode == verificationCode)
             {
-                isRegistered = true;
-                Console.Clear();
-                Console.WriteLine("\nAccount Registered and Verified Successfully!\n");
+                if (ManageAnimal.RegisterUser(fullName, email, password))
+                {
+                    Show3DLoadingAnimation();
+                    Console.Clear();
+                    Console.WriteLine("\nAccount Registered and Verified Successfully!\n");
+                }
             }
             else
             {
+                Show3DLoadingAnimation();
                 Console.WriteLine("Invalid Verification Code. Registration failed.");
             }
         }
@@ -269,20 +267,9 @@ public class loginreg
         }
     }
 
-    public static string GenerateVerificationCode()
-    {
-        Random random = new Random();
-        return random.Next(100000, 999999).ToString();
-    }
-
     public static void login()
     {
-        if (!isRegistered)
-        {
-            Console.Clear();
-            Console.WriteLine("You need to register first!\n");
-            return;
-        }
+        Console.Clear();
         Console.WriteLine(@"
 
                                                                         ██╗      ██████╗  ██████╗ ██╗███╗   ██╗
@@ -296,66 +283,145 @@ public class loginreg
 ");
 
         Console.Write("Enter your Email Address: ");
-        string emailInput = Console.ReadLine();
+        string email = Console.ReadLine();
 
         Console.Write("Enter your Password: ");
-        string passwordInput = "";
+        string password = "";
         ConsoleKeyInfo key;
 
         do
         {
             key = Console.ReadKey(true);
-
-            if (key.Key == ConsoleKey.Backspace && passwordInput.Length > 0)
+            if (key.Key == ConsoleKey.Backspace && password.Length > 0)
             {
-                passwordInput = passwordInput.Substring(0, passwordInput.Length - 1);
+                password = password.Substring(0, password.Length - 1);
                 Console.Write("\b \b");
             }
             else if (key.Key != ConsoleKey.Backspace && key.Key != ConsoleKey.Enter)
             {
-                passwordInput += key.KeyChar;
+                password += key.KeyChar;
                 Console.Write("*");
             }
         } while (key.Key != ConsoleKey.Enter);
 
         Console.WriteLine();
 
-        if (emailInput == email && passwordInput == password)
+        if (ManageAnimal.ValidateLogin(email, password))
         {
+
+            Show3DLoadingAnimation();
             Console.Clear();
             Console.WriteLine("Login Successful!\n");
             isLoggedIn = true;
         }
         else
         {
+            Show3DLoadingAnimation();
             Console.Clear();
             Console.WriteLine("Invalid Email Address or Password!\n");
-            isLoggedIn = false;
         }
     }
+
+    private static string GenerateVerificationCode()
+    {
+        Random random = new Random();
+        return random.Next(100000, 999999).ToString();
+    }
+
+    public static void Show3DLoadingAnimation()
+        {
+            Console.CursorVisible = false;
+            int barWidth = 120; 
+            int duration = 100; 
+            char block = '█';
+            char empty = ' ';
+
+            Console.Clear();
+            Console.WriteLine(@"
+                                                                                                                                    
+                                                                                                                                    
+                                        █████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗█████╗
+                                        ╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝╚════╝
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                
+                                                                                ██╗      ██████╗  █████╗ ██████╗ ██╗███╗   ██╗ ██████╗          
+                                                                                ██║     ██╔═══██╗██╔══██╗██╔══██╗██║████╗  ██║██╔════╝          
+                                                                                ██║     ██║   ██║███████║██║  ██║██║██╔██╗ ██║██║  ███╗         
+                                                                                ██║     ██║   ██║██╔══██║██║  ██║██║██║╚██╗██║██║   ██║         
+                                                                                ███████╗╚██████╔╝██║  ██║██████╔╝██║██║ ╚████║╚██████╔╝██╗██╗██╗
+                                                                                ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═════╝ ╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝╚═╝╚═╝
+                 
+
+
+
+
+
+");
+
+            for (int i = 0; i <= duration; i++)
+            {
+                double percent = (double)i / duration;
+                int filled = (int)(barWidth * percent);
+
+                string line1 = "[" + new string(block, filled) + new string(empty, barWidth - filled) + "]";
+                string line2 = "[" + new string(block, (int)(filled * 0.9)) + new string(empty, barWidth - (int)(filled * 0.9)) + "]";
+                string line3 = "[" + new string(block, (int)(filled * 0.8)) + new string(empty, barWidth - (int)(filled * 0.8)) + "]";
+
+                Console.SetCursorPosition(0, Console.CursorTop - 3);
+                Console.WriteLine("\t\t\t\t\t\t" + line1);
+                Console.WriteLine("\t\t\t\t\t\t" + line2);
+                Console.WriteLine("\t\t\t\t\t\t" + line3);
+                Console.Write("\t\t\t\t\t\t\t\t\t\t\t\tLoading: " + i + "%");
+                Thread.Sleep(50);
+            }
+
+            Console.WriteLine("\n\n\t\t✅ Loading Complete!\n");
+        }
 }
 
 public class emailSetup
 {
+
+
     public static bool SendEmail(string recipientEmail, string verificationCode)
     {
         try
         {
-            MailMessage mail = new MailMessage();
-            SmtpClient smtpServer = new SmtpClient("smtp.gmail.com");
-
-            mail.From = new MailAddress("tamuni.vents@gmail.com", "Pet Adoption System");
+            MailMessage mail = new MailMessage
+            {
+                From = new MailAddress("tamuni.vents@gmail.com", "Pet Adoption System"),
+                Subject = "Your Verification Code",
+                IsBodyHtml = true
+            };
             mail.To.Add(recipientEmail);
-            mail.Subject = "Your Verification Code";
-            mail.Body = $"Your verification code is: {verificationCode}";
-            mail.IsBodyHtml = true;
 
-            smtpServer.Port = 587;
-            smtpServer.Credentials = new NetworkCredential("mypetadoptionsystem@gmail.com", "odcl otjm kwcu euog");
-            smtpServer.EnableSsl = true;
+            // Plain text email with the verification code
+            string htmlBody = $@"
+                <html>
+                    <body>
+                        <h2>Welcome to Pet Adoption System</h2>
+                        <p>Your verification code is:</p>
+                        <h1 style='color: black;'>{verificationCode}</h1>
+                        <p>Please use this code to verify your account.</p>
+                        <hr>
+                        <p>If you did not request this, please ignore this email.</p>
+                    </body>
+                </html>";
+
+            mail.Body = htmlBody;
+
+            // SMTP settings
+            SmtpClient smtpServer = new SmtpClient("smtp.gmail.com")
+            {
+                Port = 587,
+                Credentials = new NetworkCredential("mypetadoptionsystem@gmail.com", "odcl otjm kwcu euog"),
+                EnableSsl = true
+            };
 
             smtpServer.Send(mail);
-            Console.WriteLine("Email sent successfully!");
+            Console.WriteLine("Email sent successfully.");
             return true;
         }
         catch (Exception ex)
@@ -364,6 +430,8 @@ public class emailSetup
             return false;
         }
     }
+
+
 }
 
 
@@ -398,7 +466,6 @@ public class inside
 
         Console.Write("Enter your choice: ");
     }
-
 
     public static void viewAccount()
     {
@@ -481,7 +548,6 @@ public class inside
         }
     }
 
-
     public static void animalRegister()
     {
         Console.Clear();
@@ -510,7 +576,6 @@ public class inside
         Console.Clear();
         Console.WriteLine("Animal Registered Successfully!\n");
     }
-
 
     public static void adoptionRequest()
     {
